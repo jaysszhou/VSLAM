@@ -1,0 +1,1 @@
+./mono_kitti /home/jaysszhou/Documents/Algorithm/ORB_SLAM2-master/Vocabulary/ORBvoc.bin ./KITTI03.yaml /home/jaysszhou/Documents/Dataset/Kitti_SLAM_Evaluation_2012/data_odometry_gray/dataset/sequences/03
