@@ -30,6 +30,8 @@
 #include "ORBVocabulary.h"
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/list.hpp>
 
 #include <mutex>
 
@@ -57,9 +59,7 @@ public:
 private:
   friend class boost::serialization::access;
   template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    ar & mId;
-  }
+  void serialize(Archive &ar, const unsigned int version);
   long unsigned int mId;
 
 protected:
