@@ -58,19 +58,20 @@ int main(int argc, char **argv) {
   vTimesTrack.resize(nImages);
 
   cout << endl << "-------" << endl;
-  cout << "Start processing sequence ..." << endl;
-  cout << "Images in the sequence: " << nImages << endl << endl;
+  cout << "[mono_kitti] Start processing sequence ..." << endl;
+  cout << "[mono_kitti] Images in the sequence: " << nImages << endl << endl;
 
   // Main loop
   cv::Mat im;
   for (int ni = 0; ni < nImages; ni++) {
     // Read image from file
+    std::cout << std::endl << "[mono_kitti] Processing frame " << ni << std::endl;
     im = cv::imread(vstrImageFilenames[ni], CV_LOAD_IMAGE_UNCHANGED);
     double tframe = vTimestamps[ni];
 
     if (im.empty()) {
       cerr << endl
-           << "Failed to load image at: " << vstrImageFilenames[ni] << endl;
+           << "[mono_kitti] Failed to load image at: " << vstrImageFilenames[ni] << endl;
       return 1;
     }
 
@@ -115,11 +116,12 @@ int main(int argc, char **argv) {
     totaltime += vTimesTrack[ni];
   }
   cout << "-------" << endl << endl;
-  cout << "median tracking time: " << vTimesTrack[nImages / 2] << endl;
-  cout << "mean tracking time: " << totaltime / nImages << endl;
+  cout << "[mono_kitti] median tracking time: " << vTimesTrack[nImages / 2] << endl;
+  cout << "[mono_kitti] mean tracking time: " << totaltime / nImages << endl;
 
   // Save camera trajectory
-  SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+  SLAM.SaveKeyFrameTrajectoryTUM("../../map/KeyFrameTrajectory.txt");
+  SLAM.SaveMap("../../map/MapFile.bin");
 
   return 0;
 }

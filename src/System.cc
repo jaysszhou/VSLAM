@@ -22,6 +22,8 @@
 #include "Converter.h"
 #include <iomanip>
 #include <pangolin/pangolin.h>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 #include <thread>
 
 namespace ORB_SLAM2 {
@@ -57,18 +59,22 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     exit(-1);
   }
 
+  cv::FileNode mapfilen = fsSettings["map.mapfile"];
+  if(!mapfilen.empty()){
+    mMapFile = mapfilen.string();
+  }
   // Load ORB Vocabulary
-  cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
+  cout << endl << "[system] Loading ORB Vocabulary. This could take a while..." << endl;
 
   mpVocabulary = new ORBVocabulary();
   // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
   bool bVocLoad = mpVocabulary->loadFromBinFile(strVocFile);
   if (!bVocLoad) {
-    cerr << "Wrong path to vocabulary. " << endl;
-    cerr << "Falied to open at: " << strVocFile << endl;
+    cerr << "[system] Wrong path to vocabulary. " << endl;
+    cerr << "[system] Falied to open at: " << strVocFile << endl;
     exit(-1);
   }
-  cout << "Vocabulary loaded!" << endl << endl;
+  cout << "[system] Vocabulary loaded!" << endl << endl;
 
   // Create KeyFrame Database
   mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
@@ -117,7 +123,7 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
                             const double &timestamp) {
   if (mSensor != STEREO) {
-    cerr << "ERROR: you called TrackStereo but input sensor was not set to "
+    cerr << "[system] ERROR: you called TrackStereo but input sensor was not set to "
             "STEREO."
          << endl;
     exit(-1);
@@ -165,7 +171,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
                           const double &timestamp) {
   if (mSensor != RGBD) {
-    cerr << "ERROR: you called TrackRGBD but input sensor was not set to RGBD."
+    cerr << "[system] ERROR: you called TrackRGBD but input sensor was not set to RGBD."
          << endl;
     exit(-1);
   }
@@ -211,14 +217,14 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
 
 cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor != MONOCULAR) {
-    cerr << "ERROR: you called TrackMonocular but input sensor was not set to "
+    cerr << "[system] ERROR: you called TrackMonocular but input sensor was not set to "
             "Monocular."
          << endl;
     exit(-1);
   }
   // Check mode change
   {
-    std::cout << "Check mode change" << std::endl;
+    std::cout << "[system] Check mode change" << std::endl;
     unique_lock<mutex> lock(mMutexMode);
     if (mbActivateLocalizationMode) {
       mpLocalMapper->RequestStop();
@@ -246,9 +252,9 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
       mbReset = false;
     }
   }
-  std::cout << "TrackMonocular" << std::endl;
+  std::cout << "[system] TrackMonocular" << std::endl;
   cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
-  std::cout << "Tcw" << Tcw << std::endl;
+  std::cout << "[system] Tcw" << Tcw << std::endl;
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;
@@ -304,9 +310,9 @@ void System::Shutdown() {
 }
 
 void System::SaveTrajectoryTUM(const string &filename) {
-  cout << endl << "Saving camera trajectory to " << filename << " ..." << endl;
+  cout << endl << "[system] Saving camera trajectory to " << filename << " ..." << endl;
   if (mSensor == MONOCULAR) {
-    cerr << "ERROR: SaveTrajectoryTUM cannot be used for monocular." << endl;
+    cerr << "[system] ERROR: SaveTrajectoryTUM cannot be used for monocular." << endl;
     return;
   }
 
@@ -361,12 +367,12 @@ void System::SaveTrajectoryTUM(const string &filename) {
       << " " << q[1] << " " << q[2] << " " << q[3] << endl;
   }
   f.close();
-  cout << endl << "trajectory saved!" << endl;
+  cout << endl << "[system] trajectory saved!" << endl;
 }
 
 void System::SaveKeyFrameTrajectoryTUM(const string &filename) {
   cout << endl
-       << "Saving keyframe trajectory to " << filename << " ..." << endl;
+       << "[system] Saving keyframe trajectory to " << filename << " ..." << endl;
 
   vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
@@ -396,7 +402,7 @@ void System::SaveKeyFrameTrajectoryTUM(const string &filename) {
   }
 
   f.close();
-  cout << endl << "trajectory saved!" << endl;
+  cout << endl << "[system] trajectory saved!" << endl;
 }
 
 void System::SaveTrajectoryKITTI(const string &filename) {
@@ -454,6 +460,34 @@ void System::SaveTrajectoryKITTI(const string &filename) {
   }
   f.close();
   cout << endl << "trajectory saved!" << endl;
+}
+
+void System::SaveMap(const string &filename)
+{
+    std::ofstream out(filename, std::ios_base::binary);
+    if (!out)
+    {
+        cerr << "[system] Cannot Write to Mapfile: " << mMapFile << std::endl;
+        exit(-1);
+    }
+    std::cout << "[system] Saving Mapfile: " << mMapFile << std::flush;
+    boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+    oa << mpMap;
+    oa << mpKeyFrameDatabase;
+    std::cout << "[system] mapfile saved successfully!" << std::endl;
+    out.close();
+}
+
+bool System::LoadMap(const string &filename)
+{
+    std::ifstream in(filename, std::ios_base::binary);
+    if (!in)
+    {
+        cerr << "[system] Cannot Open Mapfile: " << filename << ", Create a new one" << std::endl;
+        return false;
+    }
+    cout << "[system] Loading Mapfile: " << filename << std::flush;
+    return true;
 }
 
 int System::GetTrackingState() {

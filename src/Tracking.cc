@@ -246,7 +246,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
 }
 
 void Tracking::Track() {
-  std::cout << "start track " << std::endl;
+  std::cout << "[tracking] start track " << std::endl;
   if (mState == NO_IMAGES_YET) {
     mState = NOT_INITIALIZED;
   }
@@ -269,7 +269,7 @@ void Tracking::Track() {
   } else {
     // System is initialized. Track Frame.
     bool bOK;
-    std::cout << " mbOnlyTracking: " << mbOnlyTracking << std::endl;
+    std::cout << "[tracking] mbOnlyTracking: " << mbOnlyTracking << std::endl;
     // Initial camera pose estimation using motion model or relocalization (if
     // tracking is lost)
     if (!mbOnlyTracking) {
@@ -421,7 +421,7 @@ void Tracking::Track() {
     // Reset if the camera get lost soon after initialization
     if (mState == LOST) {
       if (mpMap->KeyFramesInMap() <= 5) {
-        cout << "Track lost soon after initialisation, reseting..." << endl;
+        cout << "[tracking] Track lost soon after initialisation, reseting..." << endl;
         mpSystem->Reset();
         return;
       }
@@ -478,7 +478,7 @@ void Tracking::StereoInitialization() {
       }
     }
 
-    cout << "New map created with " << mpMap->MapPointsInMap() << " points"
+    cout << "[tracking] New map created with " << mpMap->MapPointsInMap() << " points"
          << endl;
 
     mpLocalMapper->InsertKeyFrame(pKFini);
@@ -666,7 +666,7 @@ void Tracking::CreateInitialMapMonocular() {
 }
 
 void Tracking::CheckReplacedInLastFrame() {
-  std::cout << "CheckReplacedInLastFrame" << std::endl;
+  std::cout << "[tracking] CheckReplacedInLastFrame" << std::endl;
   for (int i = 0; i < mLastFrame.N; i++) {
     MapPoint *pMP = mLastFrame.mvpMapPoints[i];
 
@@ -1217,6 +1217,7 @@ void Tracking::UpdateLocalKeyFrames() {
 
 bool Tracking::Relocalization() {
   // Compute Bag of Words Vector
+  std::cout << "[tracking] start relocalization ! ";
   mCurrentFrame.ComputeBoW();
 
   // Relocalization is performed when tracking is lost
