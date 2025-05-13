@@ -20,10 +20,10 @@
 
 #include "System.h"
 #include "Converter.h"
-#include <iomanip>
-#include <pangolin/pangolin.h>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+#include <iomanip>
+#include <pangolin/pangolin.h>
 #include <thread>
 
 namespace ORB_SLAM2 {
@@ -60,11 +60,12 @@ System::System(const string &strVocFile, const string &strSettingsFile,
   }
 
   cv::FileNode mapfilen = fsSettings["map.mapfile"];
-  if(!mapfilen.empty()){
+  if (!mapfilen.empty()) {
     mMapFile = mapfilen.string();
   }
   // Load ORB Vocabulary
-  cout << endl << "[system] Loading ORB Vocabulary. This could take a while..." << endl;
+  cout << endl
+       << "[system] Loading ORB Vocabulary. This could take a while..." << endl;
 
   mpVocabulary = new ORBVocabulary();
   // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
@@ -88,7 +89,7 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 
   // Initialize the Tracking thread
   //(it will live in the main thread of execution, the one that called this
-  //constructor)
+  // constructor)
   mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
                            mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
 
@@ -123,7 +124,8 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
                             const double &timestamp) {
   if (mSensor != STEREO) {
-    cerr << "[system] ERROR: you called TrackStereo but input sensor was not set to "
+    cerr << "[system] ERROR: you called TrackStereo but input sensor was not "
+            "set to "
             "STEREO."
          << endl;
     exit(-1);
@@ -171,7 +173,8 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
                           const double &timestamp) {
   if (mSensor != RGBD) {
-    cerr << "[system] ERROR: you called TrackRGBD but input sensor was not set to RGBD."
+    cerr << "[system] ERROR: you called TrackRGBD but input sensor was not set "
+            "to RGBD."
          << endl;
     exit(-1);
   }
@@ -217,7 +220,8 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
 
 cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor != MONOCULAR) {
-    cerr << "[system] ERROR: you called TrackMonocular but input sensor was not set to "
+    cerr << "[system] ERROR: you called TrackMonocular but input sensor was "
+            "not set to "
             "Monocular."
          << endl;
     exit(-1);
@@ -304,15 +308,17 @@ void System::Shutdown() {
     usleep(5000);
   }
 
-//   if (mpViewer) {
-//     pangolin::BindToContext("ORB-SLAM2: Map Viewer");
-//   }
+  //   if (mpViewer) {
+  //     pangolin::BindToContext("ORB-SLAM2: Map Viewer");
+  //   }
 }
 
 void System::SaveTrajectoryTUM(const string &filename) {
-  cout << endl << "[system] Saving camera trajectory to " << filename << " ..." << endl;
+  cout << endl
+       << "[system] Saving camera trajectory to " << filename << " ..." << endl;
   if (mSensor == MONOCULAR) {
-    cerr << "[system] ERROR: SaveTrajectoryTUM cannot be used for monocular." << endl;
+    cerr << "[system] ERROR: SaveTrajectoryTUM cannot be used for monocular."
+         << endl;
     return;
   }
 
@@ -372,7 +378,8 @@ void System::SaveTrajectoryTUM(const string &filename) {
 
 void System::SaveKeyFrameTrajectoryTUM(const string &filename) {
   cout << endl
-       << "[system] Saving keyframe trajectory to " << filename << " ..." << endl;
+       << "[system] Saving keyframe trajectory to " << filename << " ..."
+       << endl;
 
   vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
@@ -462,32 +469,43 @@ void System::SaveTrajectoryKITTI(const string &filename) {
   cout << endl << "trajectory saved!" << endl;
 }
 
-void System::SaveMap(const string &filename)
-{
-    std::ofstream out(filename, std::ios_base::binary);
-    if (!out)
-    {
-        cerr << "[system] Cannot Write to Mapfile: " << mMapFile << std::endl;
-        exit(-1);
-    }
-    std::cout << "[system] Saving Mapfile: " << mMapFile << std::flush;
-    boost::archive::binary_oarchive oa(out, boost::archive::no_header);
-    oa << mpMap;
-    oa << mpKeyFrameDatabase;
-    std::cout << "[system] mapfile saved successfully!" << std::endl;
-    out.close();
+void System::SaveMap(const string &filename) {
+  std::ofstream out(filename, std::ios_base::binary);
+  if (!out) {
+    cerr << "[system] Cannot Write to Mapfile: " << mMapFile << std::endl;
+    exit(-1);
+  }
+  std::cout << "[system] Saving Mapfile: " << mMapFile << std::flush;
+  boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+  oa << mpMap;
+  oa << mpKeyFrameDatabase;
+  std::cout << "[system] mapfile saved successfully!" << std::endl;
+  out.close();
 }
 
-bool System::LoadMap(const string &filename)
-{
-    std::ifstream in(filename, std::ios_base::binary);
-    if (!in)
-    {
-        cerr << "[system] Cannot Open Mapfile: " << filename << ", Create a new one" << std::endl;
-        return false;
+bool System::LoadMap(const string &filename) {
+  std::ifstream in(filename, std::ios_base::binary);
+  if (!in) {
+    cerr << "[system] Cannot Open Mapfile: " << mMapFile << ", Create a new one"
+         << std::endl;
+    return false;
+  }
+  std::cout << "[system] Loading Mapfile: " << mMapFile << std::flush;
+  boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+  ia >> mpMap;
+  ia >> mpKeyFrameDatabase;
+  std::cout << "[system] Mapfile loaded" << std::endl;
+  std::cout << "[system] Map Reconstructing" << flush;
+  vector<ORB_SLAM2::KeyFrame *> vpKFS = mpMap->GetAllKeyFrames();
+  unsigned long mnFrameId = 0;
+  for (auto it : vpKFS) {
+    if (it->mnFrameId > mnFrameId) {
+      mnFrameId = it->mnFrameId;
     }
-    cout << "[system] Loading Mapfile: " << filename << std::flush;
-    return true;
+  }
+  Frame::nNextId = mnFrameId;
+  in.close();
+  return true;
 }
 
 int System::GetTrackingState() {

@@ -134,7 +134,7 @@ template<class Archive>
 void Map::serialize(Archive &ar, const unsigned int version)
 {
     ar & mspMapPoints;
-    // ar & mspKeyFrames;
+    ar & mspKeyFrames;
     ar & mvpReferenceMapPoints;
     ar & mnMaxKFid;
     ar & mnBigChangeIdx;

@@ -44,6 +44,7 @@ class Frame;
 class KeyFrameDatabase {
 public:
   KeyFrameDatabase(const ORBVocabulary &voc);
+  KeyFrameDatabase() : mpVoc(nullptr) {}
 
   void add(KeyFrame *pKF);
 
