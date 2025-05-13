@@ -28,6 +28,7 @@
 #include "Frame.h"
 #include "KeyFrame.h"
 #include "ORBVocabulary.h"
+#include "BoostArchiver.h"
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/vector.hpp>

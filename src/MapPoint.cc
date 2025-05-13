@@ -426,7 +426,6 @@ template<class Archive>
 void MapPoint::serialize(Archive &ar, const unsigned int version)
 {
     ar & mnId & nNextId & mnFirstKFid & mnFirstFrame & nObs;
-    ar & mpMap;
 }
 template void MapPoint::serialize(boost::archive::binary_iarchive&, const unsigned int);
 template void MapPoint::serialize(boost::archive::binary_oarchive&, const unsigned int);

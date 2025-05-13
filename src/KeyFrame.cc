@@ -637,11 +637,10 @@ void KeyFrame::serialize(Archive &ar, const unsigned int version)
     // no mutex needed vars
     ar & nNextId;
     ar & mnId;
-    ar & const_cast<std::vector<cv::KeyPoint> &>(mvKeys);
-    ar & const_cast<std::vector<cv::KeyPoint> &>(mvKeysUn);
-    ar & const_cast<std::vector<float> &>(mvuRight);
-    ar & const_cast<std::vector<float> &>(mvDepth);
-    ar & const_cast<cv::Mat &>(mDescriptors);
+    // ar & const_cast<std::vector<cv::KeyPoint> &>(mvKeys);
+    // ar & const_cast<std::vector<cv::KeyPoint> &>(mvKeysUn);
+    // ar & const_cast<std::vector<float> &>(mvuRight);
+    // ar & const_cast<std::vector<float> &>(mvDepth);
     // Map Points
     ar & mpMap;
     // don't save mutex

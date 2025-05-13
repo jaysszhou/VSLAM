@@ -12,6 +12,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native")
 
 # Check C++11 or C++0x support
 set(CMAKE_CXX_STANDARD 17) # Change to 20 for C++20
+set(BOOST_ROOT "/home/jaysszhou/Downloads/boost_1_66_0")
+set(Boost_NO_SYSTEM_PATHS ON) 
+find_package(Boost 1.66.0 REQUIRED COMPONENTS system filesystem serialization)
+
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 set(OpenCV_DIR "/home/jaysszhou/Documents/ThirdParty/opencv-3.4.17/build") 
@@ -27,6 +31,7 @@ ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
+${Boost_INCLUDE_DIRS}
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)

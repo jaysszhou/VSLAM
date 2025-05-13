@@ -24,11 +24,16 @@
 #include "Frame.h"
 #include "KeyFrameDatabase.h"
 #include "MapPoint.h"
+#include "BoostArchiver.h"
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
 
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/access.hpp>
+#include <boost/serialization/vector.hpp>
 #include <mutex>
 
 namespace ORB_SLAM2 {

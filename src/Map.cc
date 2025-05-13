@@ -133,10 +133,8 @@ void Map::clear()
 template<class Archive>
 void Map::serialize(Archive &ar, const unsigned int version)
 {
-    // don't save mutex
     ar & mspMapPoints;
-    ar & mvpKeyFrameOrigins;
-    ar & mspKeyFrames;
+    // ar & mspKeyFrames;
     ar & mvpReferenceMapPoints;
     ar & mnMaxKFid;
     ar & mnBigChangeIdx;

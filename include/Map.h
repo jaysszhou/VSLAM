@@ -23,6 +23,7 @@
 
 #include "KeyFrame.h"
 #include "MapPoint.h"
+#include "BoostArchiver.h"
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/access.hpp>

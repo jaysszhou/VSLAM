@@ -24,6 +24,7 @@
 #include "Frame.h"
 #include "KeyFrame.h"
 #include "Map.h"
+#include "BoostArchiver.h"
 
 #include <mutex>
 #include <map>
