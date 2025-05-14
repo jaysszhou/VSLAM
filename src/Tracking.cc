@@ -421,7 +421,8 @@ void Tracking::Track() {
     // Reset if the camera get lost soon after initialization
     if (mState == LOST) {
       if (mpMap->KeyFramesInMap() <= 5) {
-        cout << "[tracking] Track lost soon after initialisation, reseting..." << endl;
+        cout << "[tracking] Track lost soon after initialisation, reseting..."
+             << endl;
         mpSystem->Reset();
         return;
       }
@@ -478,8 +479,8 @@ void Tracking::StereoInitialization() {
       }
     }
 
-    cout << "[tracking] New map created with " << mpMap->MapPointsInMap() << " points"
-         << endl;
+    cout << "[tracking] New map created with " << mpMap->MapPointsInMap()
+         << " points" << endl;
 
     mpLocalMapper->InsertKeyFrame(pKFini);
 
@@ -1366,12 +1367,12 @@ bool Tracking::Relocalization() {
 
 void Tracking::Reset() {
 
-  cout << "System Reseting" << endl;
-  if (mpViewer) {
-    mpViewer->RequestStop();
-    while (!mpViewer->isStopped())
-      usleep(3000);
-  }
+  cout << "[Tracking] System Reseting" << endl;
+  // if (mpViewer) {
+  //   mpViewer->RequestStop();
+  //   while (!mpViewer->isStopped())
+  //     usleep(3000);
+  // }
 
   // Reset Local Mapping
   cout << "Reseting Local Mapper...";

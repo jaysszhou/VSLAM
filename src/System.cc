@@ -30,8 +30,7 @@ namespace ORB_SLAM2 {
 
 System::System(const string &strVocFile, const string &strSettingsFile,
                const eSensor sensor, const bool bUseViewer)
-    : mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false),
-      mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
+    : mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false) {
   // Output welcome message
   cout << endl
        << "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of "
@@ -43,30 +42,11 @@ System::System(const string &strVocFile, const string &strSettingsFile,
        << "under certain conditions. See LICENSE.txt." << endl
        << endl;
 
-  cout << "Input sensor was set to: ";
+  SetSlamParams(strSettingsFile);
 
-  if (mSensor == MONOCULAR)
-    cout << "Monocular" << endl;
-  else if (mSensor == STEREO)
-    cout << "Stereo" << endl;
-  else if (mSensor == RGBD)
-    cout << "RGB-D" << endl;
-
-  // Check settings file
-  cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
-  if (!fsSettings.isOpened()) {
-    cerr << "Failed to open settings file at: " << strSettingsFile << endl;
-    exit(-1);
-  }
-
-  cv::FileNode mapfilen = fsSettings["map.mapfile"];
-  if (!mapfilen.empty()) {
-    mMapFile = mapfilen.string();
-  }
   // Load ORB Vocabulary
   cout << endl
        << "[system] Loading ORB Vocabulary. This could take a while..." << endl;
-
   mpVocabulary = new ORBVocabulary();
   // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
   bool bVocLoad = mpVocabulary->loadFromBinFile(strVocFile);
@@ -119,6 +99,30 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 
   mpLoopCloser->SetTracker(mpTracker);
   mpLoopCloser->SetLocalMapper(mpLocalMapper);
+
+  if (mbOnlyRelocalization) {
+    if (LoadMap(mMapFile)) {
+      ActivateLocalizationMode();
+      // mpTracker->mState = Tracking::eTrackingState::LOST;
+    }
+  }
+}
+
+void System::SetSlamParams(const string &strSettingsFile) {
+  cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
+  if (!fsSettings.isOpened()) {
+    std::cerr << "[system] Failed to open settings file at: " << strSettingsFile
+              << endl;
+    return;
+  }
+  fsSettings["DeactivateLocalizationMode"] >> mbDeactivateLocalizationMode;
+  fsSettings["ActivateLocalizationMode"] >> mbActivateLocalizationMode;
+  fsSettings["OnlyRelocalization"] >> mbOnlyRelocalization;
+
+  cv::FileNode mapfilen = fsSettings["map.mapfile"];
+  if (!mapfilen.empty()) {
+    mMapFile = mapfilen.string();
+  }
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
@@ -258,7 +262,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   }
   std::cout << "[system] TrackMonocular" << std::endl;
   cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
-  std::cout << "[system] Tcw" << Tcw << std::endl;
+  // std::cout << "[system] Tcw" << Tcw << std::endl;
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;
@@ -484,26 +488,40 @@ void System::SaveMap(const string &filename) {
 }
 
 bool System::LoadMap(const string &filename) {
+  if (filename.empty()) {
+    std::cout << "[system] Mapfile is empty" << std::endl;
+    return false;
+  }
   std::ifstream in(filename, std::ios_base::binary);
   if (!in) {
     cerr << "[system] Cannot Open Mapfile: " << mMapFile << ", Create a new one"
          << std::endl;
     return false;
   }
-  std::cout << "[system] Loading Mapfile: " << mMapFile << std::flush;
   boost::archive::binary_iarchive ia(in, boost::archive::no_header);
   ia >> mpMap;
   ia >> mpKeyFrameDatabase;
-  std::cout << "[system] Mapfile loaded" << std::endl;
+  std::cout << "[system] Mapfile loaded successfully from " << filename
+            << std::endl;
   std::cout << "[system] Map Reconstructing" << flush;
-  vector<ORB_SLAM2::KeyFrame *> vpKFS = mpMap->GetAllKeyFrames();
-  unsigned long mnFrameId = 0;
-  for (auto it : vpKFS) {
-    if (it->mnFrameId > mnFrameId) {
-      mnFrameId = it->mnFrameId;
-    }
+  std::vector<ORB_SLAM2::KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
+  const size_t total_size = vpKFs.size();
+  std::atomic_size_t count = 0;
+  std::atomic_bool is_finished = false;
+  std::thread load_keyframe(&System::LoadKeyFrames, this, vpKFs, mpMap, &count,
+                            &is_finished);
+  while (!is_finished) {
+    usleep(30000);
   }
-  Frame::nNextId = mnFrameId;
+  load_keyframe.join();
+  std::cout << "[system] Insert KeyFrame Current/Total: " << (count - 1) << "/"
+            << total_size << " , Done !" << std::endl;
+
+  std::thread load_map_point_thread(&System::LoadMapPoints, this, mpMap);
+  for (size_t i = 0; i < vpKFs.size(); i++) {
+    vpKFs[i]->UpdateConnections();
+  }
+  load_map_point_thread.join();
   in.close();
   return true;
 }
@@ -521,6 +539,56 @@ vector<MapPoint *> System::GetTrackedMapPoints() {
 vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackedKeyPointsUn;
+}
+
+void System::LoadMapPoints(Map *pMap) {
+  vector<MapPoint *> vMPs = pMap->GetAllMapPoints();
+  for (size_t i = 0; i < vMPs.size(); i++) {
+    vMPs[i]->ComputeDistinctiveDescriptors();
+    vMPs[i]->UpdateNormalAndDepth();
+  }
+  std::cout << "[system] Load Map Points Finished. " << std::endl;
+}
+
+void System::LoadKeyFrames(const std::vector<KeyFrame *> &vpKFs, Map *pMap,
+                           std::atomic_size_t *const pCount,
+                           std::atomic_bool *const p_is_finished) {
+  for (auto &pKF : vpKFs) {
+    if (pKF == nullptr || pKF->isBad()) {
+      continue;
+    }
+    AddKeyFrame(pKF, pMap);
+    pCount->fetch_add(1);
+  }
+  *p_is_finished = true;
+}
+
+void System::AddKeyFrame(KeyFrame *keyframe, Map *pMap) {
+  // Frame frame(cv::Size((int)mWidth, (int)mHeight), keyframe->GetPose(),
+  //             keyframe->mvKeys, keyframe->mvKeysUn, keyframe->mDescriptors,
+  //             keyframe->_globaldescriptors, keyframe->mTimeStamp, mpVocabulary,
+  //             mk, mbf);
+
+  // KeyFrame *pKF = KeyFrame::CreateNewKeyFrame(frame, pMap, mpKeyFrameDatabase);
+  // pKF->SetPose(keyframe->GetPose());
+  // std::vector<cv::Mat> vDesc = Converter::toDescriptorVector(pKF->mDescriptors);
+  // mpVocabulary->transform(pKF->mDescriptors, 4, pKF->mBowVec, pKF->mFeatVec);
+
+  pMap->AddKeyFrame(keyframe);
+  mpKeyFrameDatabase->add(keyframe);
+  std::vector<MapPoint *> vpMaps = keyframe->GetMapPointMatches();
+
+  for (unsigned i = 0; i < vpMaps.size(); i++) {
+    MapPoint *pMP = vpMaps[i];
+    if (pMP == nullptr || pMP->isBad()) {
+      std::cout << "nullptr/bad map point detected while adding a keyframe!"
+                << std::endl;
+      continue;
+    }
+    pMP->AddObservation(keyframe, i);
+    keyframe->AddMapPoint(pMP, i);
+    pMap->AddMapPoint(pMP);
+  }
 }
 
 } // namespace ORB_SLAM2
