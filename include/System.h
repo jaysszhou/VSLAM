@@ -122,7 +122,8 @@ public:
 
 private:
   void SetSlamParams(const string &strSettingsFile);
-  void LoadMapPoints(Map *pMap);
+  void LoadMapPoints(const std::vector<MapPoint *> &saved_map_points,
+                     Map *pMap);
   void LoadKeyFrames(const std::vector<KeyFrame *> &vpKFs, Map *pMap,
                      std::atomic_size_t *const pCount,
                      std::atomic_bool *const p_is_finished);

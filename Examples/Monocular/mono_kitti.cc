@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 
 #include <opencv2/core/core.hpp>
 
@@ -53,6 +54,10 @@ int main(int argc, char **argv) {
   // process frames.
   ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
 
+  cv::FileStorage fsSettings(std::string(argv[2]).c_str(),
+                             cv::FileStorage::READ);
+  bool step_debug_flag = false;
+  fsSettings["StepDebug"] >> step_debug_flag;
   // Vector for tracking time statistics
   vector<float> vTimesTrack;
   vTimesTrack.resize(nImages);
@@ -65,13 +70,20 @@ int main(int argc, char **argv) {
   cv::Mat im;
   for (int ni = 0; ni < nImages; ni++) {
     // Read image from file
-    std::cout << std::endl << "[mono_kitti] Processing frame " << ni << std::endl;
+    std::cout << std::endl
+              << "[mono_kitti] Processing frame " << ni << std::endl;
+    if (step_debug_flag) {
+      std::cout << "[mono_kitti] Press Enter to process the next frame"
+                << std::endl;
+      (void)getchar();
+    }
     im = cv::imread(vstrImageFilenames[ni], CV_LOAD_IMAGE_UNCHANGED);
     double tframe = vTimestamps[ni];
 
     if (im.empty()) {
       cerr << endl
-           << "[mono_kitti] Failed to load image at: " << vstrImageFilenames[ni] << endl;
+           << "[mono_kitti] Failed to load image at: " << vstrImageFilenames[ni]
+           << endl;
       return 1;
     }
 
@@ -116,7 +128,8 @@ int main(int argc, char **argv) {
     totaltime += vTimesTrack[ni];
   }
   cout << "-------" << endl << endl;
-  cout << "[mono_kitti] median tracking time: " << vTimesTrack[nImages / 2] << endl;
+  cout << "[mono_kitti] median tracking time: " << vTimesTrack[nImages / 2]
+       << endl;
   cout << "[mono_kitti] mean tracking time: " << totaltime / nImages << endl;
 
   // Save camera trajectory

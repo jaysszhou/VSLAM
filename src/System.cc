@@ -82,6 +82,14 @@ System::System(const string &strVocFile, const string &strSettingsFile,
                                  mSensor != MONOCULAR);
   mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
+  if (mbOnlyRelocalization) {
+    std::cout << "[system] load map from : " << mMapFile << std::endl;
+    if (LoadMap(mMapFile)) {
+      ActivateLocalizationMode();
+      // mpTracker->mState = Tracking::eTrackingState::LOST;
+    }
+  }
+
   // Initialize the Viewer thread and launch
   if (bUseViewer) {
     mpViewer = new Viewer(this, mpFrameDrawer, mpMapDrawer, mpTracker,
@@ -99,13 +107,6 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 
   mpLoopCloser->SetTracker(mpTracker);
   mpLoopCloser->SetLocalMapper(mpLocalMapper);
-
-  if (mbOnlyRelocalization) {
-    if (LoadMap(mMapFile)) {
-      ActivateLocalizationMode();
-      // mpTracker->mState = Tracking::eTrackingState::LOST;
-    }
-  }
 }
 
 void System::SetSlamParams(const string &strSettingsFile) {
@@ -481,8 +482,11 @@ void System::SaveMap(const string &filename) {
   }
   std::cout << "[system] Saving Mapfile: " << mMapFile << std::flush;
   boost::archive::binary_oarchive oa(out, boost::archive::no_header);
-  oa << mpMap;
-  oa << mpKeyFrameDatabase;
+  std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
+  std::vector<MapPoint *> vMapPoints = mpMap->GetAllMapPoints();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+  oa << vpKFs;
+  oa << vMapPoints;
   std::cout << "[system] mapfile saved successfully!" << std::endl;
   out.close();
 }
@@ -498,13 +502,14 @@ bool System::LoadMap(const string &filename) {
          << std::endl;
     return false;
   }
+  std::vector<KeyFrame *> vpKFs;
+  std::vector<MapPoint *> vMapPoints;
   boost::archive::binary_iarchive ia(in, boost::archive::no_header);
-  ia >> mpMap;
-  ia >> mpKeyFrameDatabase;
+  ia >> vpKFs;
+  ia >> vMapPoints;
   std::cout << "[system] Mapfile loaded successfully from " << filename
             << std::endl;
   std::cout << "[system] Map Reconstructing" << flush;
-  std::vector<ORB_SLAM2::KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   const size_t total_size = vpKFs.size();
   std::atomic_size_t count = 0;
   std::atomic_bool is_finished = false;
@@ -517,7 +522,8 @@ bool System::LoadMap(const string &filename) {
   std::cout << "[system] Insert KeyFrame Current/Total: " << (count - 1) << "/"
             << total_size << " , Done !" << std::endl;
 
-  std::thread load_map_point_thread(&System::LoadMapPoints, this, mpMap);
+  std::thread load_map_point_thread(&System::LoadMapPoints, this, vMapPoints,
+                                    mpMap);
   for (size_t i = 0; i < vpKFs.size(); i++) {
     vpKFs[i]->UpdateConnections();
   }
@@ -541,13 +547,15 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   return mTrackedKeyPointsUn;
 }
 
-void System::LoadMapPoints(Map *pMap) {
-  vector<MapPoint *> vMPs = pMap->GetAllMapPoints();
-  for (size_t i = 0; i < vMPs.size(); i++) {
-    vMPs[i]->ComputeDistinctiveDescriptors();
-    vMPs[i]->UpdateNormalAndDepth();
+void System::LoadMapPoints(const std::vector<MapPoint *> &saved_map_points,
+                           Map *pMap) {
+  for (size_t i = 0; i < saved_map_points.size(); i++) {
+    saved_map_points[i]->ComputeDistinctiveDescriptors();
+    saved_map_points[i]->UpdateNormalAndDepth();
+    pMap->AddMapPoint(saved_map_points[i]);
   }
-  std::cout << "[system] Load Map Points Finished. " << std::endl;
+  const auto &points = pMap->GetAllMapPoints();
+  std::cout << "[system] Load Map Points size : " << points.size() << std::endl;
 }
 
 void System::LoadKeyFrames(const std::vector<KeyFrame *> &vpKFs, Map *pMap,
@@ -566,12 +574,13 @@ void System::LoadKeyFrames(const std::vector<KeyFrame *> &vpKFs, Map *pMap,
 void System::AddKeyFrame(KeyFrame *keyframe, Map *pMap) {
   // Frame frame(cv::Size((int)mWidth, (int)mHeight), keyframe->GetPose(),
   //             keyframe->mvKeys, keyframe->mvKeysUn, keyframe->mDescriptors,
-  //             keyframe->_globaldescriptors, keyframe->mTimeStamp, mpVocabulary,
-  //             mk, mbf);
+  //             keyframe->_globaldescriptors, keyframe->mTimeStamp,
+  //             mpVocabulary, mk, mbf);
 
-  // KeyFrame *pKF = KeyFrame::CreateNewKeyFrame(frame, pMap, mpKeyFrameDatabase);
-  // pKF->SetPose(keyframe->GetPose());
-  // std::vector<cv::Mat> vDesc = Converter::toDescriptorVector(pKF->mDescriptors);
+  // KeyFrame *pKF = KeyFrame::CreateNewKeyFrame(frame, pMap,
+  // mpKeyFrameDatabase); pKF->SetPose(keyframe->GetPose());
+  // std::vector<cv::Mat> vDesc =
+  // Converter::toDescriptorVector(pKF->mDescriptors);
   // mpVocabulary->transform(pKF->mDescriptors, 4, pKF->mBowVec, pKF->mFeatVec);
 
   pMap->AddKeyFrame(keyframe);

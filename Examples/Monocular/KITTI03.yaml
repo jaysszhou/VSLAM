@@ -63,6 +63,7 @@ map.mapfile: "../../map/MapFile.bin"
 #--------------------------------------------------------------------------------------------
 # SLAM mode
 #--------------------------------------------------------------------------------------------
+StepDebug: 1
 ActivateLocalizationMode: 0
 DeActivateLocalizationMode: 0
-OnlyRelocalization: 0
+OnlyRelocalization: 1
